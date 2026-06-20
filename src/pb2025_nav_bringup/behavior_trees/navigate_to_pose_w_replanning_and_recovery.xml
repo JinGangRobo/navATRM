@@ -1,9 +1,24 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Replanning + recovery behavior tree for NavigateToPose.
+
+  Recovery sub-tree (RecoveryFallback / RoundRobin) exposes four escape
+  strategies, ordered from cheapest to most disruptive:
+    1. Clear local costmap around the robot (keeps near-field observations)
+       + clear the global costmap entirely.
+    2. Spin in place — recovers from sensor occlusion / phantom obstacles.
+    3. Wait — lets dynamic obstacles clear the path.
+    4. BackUp — physical retreat with a concrete non-zero distance so the
+       recovery does not silently degrade to a no-op when a custom backup
+       plugin happens to be absent.
+
+  Node names / ports are aligned with the Nav2 Humble default recovery BT.
+-->
 <root BTCPP_format="3"
       main_tree_to_execute="MainTree">
   <BehaviorTree ID="MainTree">
     <RecoveryNode name="NavigateRecovery"
-                  number_of_retries="10">
+                  number_of_retries="6">
       <PipelineSequence name="NavigateWithReplanning">
         <RateController hz="3.0">
           <RecoveryNode name="ComputePathToPose"
@@ -27,13 +42,16 @@
         <GoalUpdated/>
         <RoundRobin name="RecoveryActions">
           <Sequence name="ClearingActions">
-            <ClearEntireCostmap name="ClearLocalCostmap-Subtree"
-                                service_name="local_costmap/clear_entirely_local_costmap"/>
+            <ClearCostmapAroundRobot name="ClearLocalCostmap-Subtree"
+                                     service_name="local_costmap/clear_around_local_costmap"
+                                     reset_distance="1.0"/>
             <ClearEntireCostmap name="ClearGlobalCostmap-Subtree"
                                 service_name="global_costmap/clear_entirely_global_costmap"/>
           </Sequence>
-          <BackUp backup_dist="0.0"
-                  backup_speed="1.0"/>
+          <Spin spin_dist="1.57"/>
+          <Wait wait_duration="5"/>
+          <BackUp backup_dist="0.30"
+                  backup_speed="0.15"/>
         </RoundRobin>
       </ReactiveFallback>
     </RecoveryNode>
