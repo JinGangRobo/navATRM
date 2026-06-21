@@ -5,3 +5,18 @@ decision_maker:
     base_frame: base_footprint
     odom_frame: odom
     desired_enemy_distance_threshold: 1.2
+    # --- Nav2 abort / stall recovery ---
+    # Tolerant send-goal timeout so transient DDS jitter does not fail a nav.
+    send_goal_timeout_ms: 3000
+    # Minimum interval between (re)issuing a NavigateToPose goal, to stop a
+    # tight ReactiveFallback from hammering the action server after an abort.
+    resend_cooldown_ms: 1000
+    # How long after a Nav2 abort the IsNavStuck gate stays SUCCESS, giving the
+    # mission layer a bounded window to run a recovery (retreat + relocalize).
+    stuck_window_ms: 4000
+    # Odom topic for the motion-stall watchdog.
+    odom_topic: odom
+    # Below this linear speed (m/s) the robot is considered stalled.
+    stall_threshold: 0.05
+    # Sustained stall duration (ms) before IsMotionStalled reports SUCCESS.
+    stall_duration_ms: 6000

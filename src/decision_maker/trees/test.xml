@@ -12,6 +12,19 @@
                          current_hp="{current_hp}"/>
       <ReactiveFallback name="Play the GAME"
                         _while="game_state==4">
+        <!--
+          Nav2-abort recovery: when NavToPose below aborts (Nav2 truly gave up
+          after exhausting its own recovery tree), IsNavStuck latches SUCCESS
+          for a bounded window and this branch retreats to the home pose so the
+          robot can re-localize and re-attempt instead of re-spamming the same
+          failed goal at the BT tick rate. The resend cooldown in NavToPose
+          rate-limits re-issues during the window.
+        -->
+        <Sequence name="NavAbortRecovery">
+          <IsNavStuck/>
+          <NavToPose name="Retreat home"
+                     goal="0.0,0.0,0.0,0.0,0.0,0.0,0.0"/>
+        </Sequence>
         <NavToPose name="Back home"
                    goal="0.0,0.0,0.0,0.0,0.0,0.0,0.0"
                    _while="current_hp &lt;= 200"/>
@@ -50,7 +63,17 @@
     <Action ID="NavToPose">
       <input_port name="goal"
                   type="geometry_msgs::msg::PoseStamped_&lt;std::allocator&lt;void&gt; &gt;">goal send to navigator.</input_port>
+      <output_port name="is_navigating"
+                   type="bool">true while a navigation goal is in flight</output_port>
     </Action>
+    <Condition ID="IsNavStuck">
+      <description>SUCCESS for a bounded window after Nav2 aborts a goal.</description>
+    </Condition>
+    <Condition ID="IsMotionStalled">
+      <input_port name="is_navigating"
+                  type="bool"/>
+      <description>SUCCESS when navigating but linear speed stays below threshold.</description>
+    </Condition>
     <Action ID="SetSpin">
       <input_port name="spin_vel"
                   type="BT::AnyTypeAllowed">chassis spin velocity</input_port>

@@ -1,13 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Replanning + recovery behavior tree for NavigateThroughPoses.
+
+  Same recovery strategy as the NavigateToPose variant (clear around robot +
+  clear global, then Spin / Wait / BackUp). ComputePathThroughPoses retries
+  are aligned with ComputePathToPose so a single transient planning failure
+  does not abort a multi-goal navigation.
+-->
 <root BTCPP_format="3"
       main_tree_to_execute="MainTree">
   <BehaviorTree ID="MainTree">
     <RecoveryNode name="NavigateRecovery"
-                  number_of_retries="10">
+                  number_of_retries="6">
       <PipelineSequence name="NavigateWithReplanning">
         <RateController hz="3.0">
           <RecoveryNode name="ComputePathThroughPoses"
-                        number_of_retries="1">
+                        number_of_retries="5">
             <ReactiveSequence>
               <RemovePassedGoals input_goals="{goals}"
                                  output_goals="{goals}"
@@ -32,13 +40,16 @@
         <GoalUpdated/>
         <RoundRobin name="RecoveryActions">
           <Sequence name="ClearingActions">
-            <ClearEntireCostmap name="ClearLocalCostmap-Subtree"
-                                service_name="local_costmap/clear_entirely_local_costmap"/>
+            <ClearCostmapAroundRobot name="ClearLocalCostmap-Subtree"
+                                     service_name="local_costmap/clear_around_local_costmap"
+                                     reset_distance="1.0"/>
             <ClearEntireCostmap name="ClearGlobalCostmap-Subtree"
                                 service_name="global_costmap/clear_entirely_global_costmap"/>
           </Sequence>
-          <BackUp backup_dist="0.0"
-                  backup_speed="1.0"/>
+          <Spin spin_dist="1.57"/>
+          <Wait wait_duration="5"/>
+          <BackUp backup_dist="1.0"
+                  backup_speed="0.15"/>
         </RoundRobin>
       </ReactiveFallback>
     </RecoveryNode>
